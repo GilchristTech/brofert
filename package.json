@@ -1,0 +1,15 @@
+{
+  "name": "browser-feature-report",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "eleventy --serve"
+  },
+  "keywords": [],
+  "author": "Gilchrist Pitts",
+  "license": "MIT",
+  "description": "Browser Feature Report, a tiny HTML page for getting data on browser features.",
+  "devDependencies": {
+    "@11ty/eleventy": "^3.0.0"
+  }
+}

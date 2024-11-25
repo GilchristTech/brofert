@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Browser Feature Report</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    *, *::before, *::after { box-sizing: inherit }
+
+    body {
+      font-family: sans-serif;
+      display: flex;
+      margin: 0;
+      flex-direction: column;
+      min-height: 600px;
+      min-height: 100vh;
+      min-height: 100dvh;
+      box-sizing: border-box;
+    }
+
+    div.noscript {
+      /* Why not just style the <noscript> tag? IE5 doesn't like it. */
+      position: fixed;
+      top: 0; right: 0; bottom: 0; left: 0;
+      background: #fffa;
+      font-size: 48px;
+      padding: 10%;
+      backdrop-filter: blur(3px);
+    }
+
+    div.main { margin: 1em; flex-grow: 1 }
+
+    div.header {
+      border-bottom: 1px solid #888;
+      margin-bottom: 2em;
+      display: flex;
+      padding: 8px;
+
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: space-between;
+    }
+
+    div.main > header h1 {
+      display: inline-block;
+      margin: 0;
+      font-weight: normal;
+    }
+
+    div.main > header button {
+      margin-left: auto;
+    }
+
+    table {
+      table-layout: fixed;
+      word-break: break-word;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      overflow: auto;
+      width: 100%;
+      border-collapse: collapse;
+      overflow-x: scroll;
+    }
+
+    thead {
+      position: sticky;
+      top: 0;
+      box-shadow: 0 1px 2px #0004;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+
+    .align-right { text-align: right; }
+
+    th {
+      background-color: #f4f4f4;
+    }
+
+    div.footer {
+      background: #ccc;
+      padding: 1em;
+    }
+
+    pre, code {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      width: 100%;
+    }
+
+    pre {
+      height: 200px;
+
+      overflow-y: scroll;
+      border: 2px solid #888;
+      border-radius: 4px;
+      padding: 8px;
+
+      background: #444;
+      color: #afa;
+    }
+  </style>
+
+  <script>
+    if (window.JSON && window.JSON.stringify) {
+      window.jsonStringify = JSON.stringify;
+    }
+    else {
+      // Fallback JSON.stringify function
+      //
+      window.jsonEscapeString = function (string) {
+        var escaped = '"';
+
+        for (var i = 0; i < string.length; i++) {
+          // In Netscape, "char" may be a reserved word
+          var character      = string.charAt(i);
+          var character_code = character.charCodeAt(0);
+
+          switch (character) {
+            case '"', '\\', '\b', '\f', '\n', '\r', '\t', '\u2028', '\u2029':
+              character = '\\' + character;
+            default:
+              if (character_code < 0x20) {
+                character = '\\u' + ('0000' + character_code.toString(16)).slice(-4);
+              }
+          }
+          escaped += character;
+        }
+
+        return escaped + '"';
+      }
+
+      window.jsonStringify = function jsonStringify(value) {
+        if (value === null) {
+          return "null";
+        }
+
+        if (typeof value === "boolean" || typeof value === "number") {
+          return String(value);
+        }
+
+        if (typeof value === "string") {
+          return jsonEscapeString(value);
+        }
+
+        if (typeof value === "object") {
+          // If the value is an array
+          if (value instanceof Array) {
+            var result = [];
+            for (var i = 0; i < value.length; i++) {
+              result[result.length] = window.jsonStringify(value[i]) || "null";
+            }
+
+            return "[" + result.join(",") + "]";
+          }
+          else {
+            var keys = [];
+            for (var key in value) {
+              if (value[key] !== window.undefined) {
+                var keyValue = jsonStringify(value[key]);
+                keys[keys.length] = jsonEscapeString(key) + ":" + keyValue;
+              }
+            }
+            return "{" + keys.join(",") + "}";
+          }
+        }
+
+        // Functions and undefined are not serializable in JSON.
+        return undefined;
+      }
+    }
+
+    window.report_features_ordered = [];
+
+    window.report = {
+      version: "0.0.1",
+      features: {}
+    };
+
+    function mediaTrue (query) {
+      if (window.matchMedia) {
+        return window.matchMedia(query).matches;
+      }
+      return null;
+    }
+
+    function reportEntry (entry_definition) {
+      var feature_id    = entry_definition.id;
+      var feature_entry = { id: feature_id };
+
+      try {
+        if (entry_definition.media) {
+          feature_entry.media = entry_definition.media;
+          feature_entry.value = mediaTrue(entry_definition.media);
+        } else {
+          feature_entry.js    = entry_definition.js;
+          feature_entry.value = eval(entry_definition.js);
+        }
+      }
+      catch (exception) {
+        feature_entry.exception = exception.toString();
+        feature_entry.value  = false;
+      }
+
+      window.report.features[feature_id] = feature_entry;
+      window.report_features_ordered[window.report_features_ordered.length] = feature_entry;
+    }
+
+    function documentWriteCopyReportButtonMaybe () {
+      // If the user's browser has the clipboard API, create a
+      // button to copy the report data.
+
+      if (!navigator.clipboard) {
+        return;
+      }
+
+      document.write(
+        '<button onclick="' +
+          'navigator.clipboard.writeText(jsonStringify(report))' +
+          ".then(_ => this.textContent = 'Copied')" + 
+        '">Copy Report Data</button>'
+      );
+    }
+  </script>
+
+  <script>
+    reportEntry({ id: "user-agent",          js: "window.navigator.userAgent" });
+    reportEntry({ id: "device-width",        js: "window.screen.width" });
+    reportEntry({ id: "device-height",       js: "window.screen.height" });
+    reportEntry({ id: "device-aspect-ratio", js: "window.screen.width / window.screen.height" });
+    reportEntry({ id: "device-pixel-ratio",  js: "window.devicePixelRatio || null"});
+
+    reportEntry({ id: "screen-color-depth",  js: "window.screen.colorDepth || null"});
+    reportEntry({ id: "screen-pixel-depth",  js: "window.screen.pixelDepth || null"});
+
+    reportEntry({
+      id: "viewport-width", js: "window.innerWidth || document.documentElement.clientWidth || null"
+    });
+
+    reportEntry({
+      id: "viewport-height", js: "window.innerHeight || document.documentElement.clientHeight || null"
+    });
+
+    reportEntry({ id: "js-class",            js: "!!class {}"})
+    reportEntry({ id: "js-arrow-function",   js: "(() => true)()"});
+    reportEntry({ id: "window.matchMedia",   js: "!!window.matchMedia"});
+    reportEntry({ id: "JSON.stringify",      js: "JSON.stringify(true) == 'true'"});
+
+    reportEntry({ id: "any-hover",   media: "(any-hover)"});
+    reportEntry({ id: "any-pointer", media: "(any-pointer)"});
+  </script>
+</head>
+<body>
+  <noscript>
+    <!--
+      Because IE5 does not appear to support all styles for
+      <noscript> tags, instead create a <div> wrapper, which can
+      be more flexibly styled.
+    -->
+    <div class="noscript">
+      <p>The Device and Media Query report requires JavaScript.
+      Please enable Javascript in your browser.</p>
+    </div>
+  </noscript>
+
+  <div class="main">
+    <div class="header">
+      <h1>Browser Feature Report</h1>
+      <script>documentWriteCopyReportButtonMaybe()</script>
+    </div>
+
+    <p>
+      <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/@media#media_features">Media Features (MDN)</a>
+    </p>
+
+    <h2>Feature Report</h2>
+
+    <div style="width: 100%">
+      <table>
+        <thead><tr>
+            <th>Feature Name</th>
+            <th class="align-right">Value</th>
+          </tr></thead>
+
+          <tbody id="report-table-body">
+            <script>
+              // Populate report table rows
+              //
+              for (var feature_i = 0; feature_i < window.report_features_ordered.length; feature_i++) {
+                var feature = window.report_features_ordered[feature_i];
+                document.write(
+                  '<tr id="' + feature.id  + '"' + (feature.value === null ? ' style="color:#888"' : "") + '">' +
+                  "<td>" + feature.id + "</td>" + 
+                  '<td class="align-right">' + feature.value + "</td>" +
+                  "</tr>"
+                );
+              }
+            </script>
+          </tbody>
+      </table>
+    </div>
+
+    <h2>Report data</h2>
+    <script>documentWriteCopyReportButtonMaybe()</script>
+    <pre><script>
+      document.write('<code>' + jsonStringify(window.report, null, 2) + "</code>");
+    </script></pre>
+  </div>
+
+  <div class="footer">
+    <p>Developed by <a href="https://gilchrist.tech">Gilchrist Pitts</a></p>
+  </div>
+  <script>
+</body>
+</html>
